@@ -443,73 +443,95 @@
     textNodes.forEach(processTextNode);
   }
 
-  // ── Link italic Hebrew/Greek words adjacent to Strong's refs ──
+  // ── Link italic Hebrew/Greek words to BLB ──
+  // Two-pass approach:
+  //   Pass 1: scan for <em>word</em> followed by (H/G1234) to build word→Strong's map
+  //   Pass 2: link ALL <em> elements whose text matches the map
+
   function linkItalicWords(element) {
     if (!element) return;
+
+    // Pass 1: build word → Strong's mapping from explicit pairings
+    var wordMap = {};
     var strongsRefs = element.querySelectorAll('a.strongs-ref');
 
     strongsRefs.forEach(function(ref) {
       var num = ref.dataset.num;
       if (!num) return;
 
-      // Walk backwards from the strongs-ref to find a preceding <em>
-      // Pattern: <em>word</em> (H1234) or <em>word</em>(H1234)
-      // After text processing: <em>word</em> + textNode(" (") + <a class="strongs-ref">
-      // or the parens might be partially consumed
-
+      // Look for pattern: <em>word</em> + text(" (") + <a.strongs-ref>
       var prev = ref.previousSibling;
-      if (!prev) return;
+      if (!prev || prev.nodeType !== 3) return;
+      if (!/\(\s*$/.test(prev.textContent)) return;
 
-      // The text node between <em> and the strongs link should contain "("
-      if (prev.nodeType === 3) {
-        var txt = prev.textContent;
-        if (!/\(\s*$/.test(txt)) return;
+      var emEl = prev.previousSibling;
+      if (!emEl) return;
 
-        var emEl = prev.previousSibling;
-        // It might be prev.prev if there's whitespace, or direct
-        if (!emEl && prev.previousSibling) emEl = prev.previousSibling;
-        if (!emEl) return;
+      // Handle <em> directly, or <strong><em>...</em></strong>
+      var targetEm = null;
+      if (emEl.tagName === 'EM' || emEl.tagName === 'I') {
+        targetEm = emEl;
+      } else if (emEl.tagName === 'STRONG' || emEl.tagName === 'B') {
+        targetEm = emEl.querySelector('em, i');
+      }
 
-        // Check if it's an <em> or contains one
-        if (emEl.tagName === 'EM' || emEl.tagName === 'I') {
-          linkEmElement(emEl, num);
-        } else if (emEl.tagName === 'STRONG' || emEl.tagName === 'B') {
-          // Might be <strong><em>word</em></strong>
-          var inner = emEl.querySelector('em, i');
-          if (inner) linkEmElement(inner, num);
+      if (targetEm) {
+        var word = targetEm.textContent.trim().toLowerCase();
+        if (word && word.length > 1) {
+          wordMap[word] = num;
         }
       }
+    });
 
-      // Also handle closing paren after the strongs ref
-      var next = ref.nextSibling;
-      if (next && next.nodeType === 3 && /^\s*\)/.test(next.textContent)) {
-        // Leave closing paren as-is, just clean up
+    // Also build mappings from the raw HTML source text for patterns the
+    // DOM walk might miss (e.g. inside already-processed nodes).
+    // Scan original page text for *word* (H/G1234) patterns.
+    var rawText = element.innerHTML;
+    var rawPattern = /<em>([A-Za-z]+)<\/em>\s*\(([HG]\d{3,5})\)/gi;
+    var rawMatch;
+    while ((rawMatch = rawPattern.exec(rawText)) !== null) {
+      var w = rawMatch[1].trim().toLowerCase();
+      var n = rawMatch[2].toUpperCase();
+      if (w.length > 1 && !wordMap[w]) {
+        wordMap[w] = n;
       }
+    }
+
+    if (Object.keys(wordMap).length === 0) return;
+
+    // Pass 2: link ALL <em> elements whose text matches the map
+    var allEms = element.querySelectorAll('em, i');
+
+    allEms.forEach(function(em) {
+      // Skip if already linked
+      if (em.closest('.word-ref') || em.closest('.strongs-ref') ||
+          em.closest('#bible-popup') || em.closest('code') || em.closest('pre')) return;
+
+      var text = em.textContent.trim().toLowerCase();
+      var num = wordMap[text];
+      if (!num) return;
+
+      // Skip common English words that happen to be italic for emphasis
+      if (/^(added|is|was|were|are|not|the|a|an|and|or|but|if|so|also|only|very|all|no|do|did|has|had|have|can|may|will|shall|would|could|should|must|been|being|become|became)$/.test(text)) return;
+
+      var a = document.createElement('a');
+      a.className = 'word-ref';
+      a.href = blbStrongsUrl(num);
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.dataset.num = num;
+      a.title = num + ' on Blue Letter Bible';
+
+      a.addEventListener('click', function(e) {
+        if (e.ctrlKey || e.metaKey || e.button === 1) return;
+        e.preventDefault();
+        e.stopPropagation();
+        showStrongsPopup(a, num);
+      });
+
+      em.parentNode.insertBefore(a, em);
+      a.appendChild(em);
     });
-  }
-
-  function linkEmElement(emEl, strongsNum) {
-    // Don't double-link
-    if (emEl.parentNode && emEl.parentNode.classList &&
-        emEl.parentNode.classList.contains('word-ref')) return;
-
-    var a = document.createElement('a');
-    a.className = 'word-ref';
-    a.href = blbStrongsUrl(strongsNum);
-    a.target = '_blank';
-    a.rel = 'noopener';
-    a.dataset.num = strongsNum;
-    a.title = strongsNum + ' on Blue Letter Bible';
-
-    a.addEventListener('click', function(e) {
-      if (e.ctrlKey || e.metaKey || e.button === 1) return;
-      e.preventDefault();
-      e.stopPropagation();
-      showStrongsPopup(a, strongsNum);
-    });
-
-    emEl.parentNode.insertBefore(a, emEl);
-    a.appendChild(emEl);
   }
 
   // ── Styles ──
