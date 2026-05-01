@@ -1,0 +1,180 @@
+site_name: "Bible Study Guides"
+site_url: "https://redmod79.github.io/study-guides/"
+site_description: "Interactive Bible study guides with beginner and advanced levels. Teaches the skill of distinguishing explicit biblical statements from inference."
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - toc.follow
+  font:
+    text: Roboto
+    code: Roboto Mono
+  custom_dir: overrides
+
+plugins:
+  - search
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+extra:
+  social:
+    - icon: fontawesome/solid/book-bible
+      link: /
+
+extra_javascript:
+  - javascripts/verse-popup.js
+  - javascripts/external-links.js
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - "The Final Fate of the Wicked":
+    - "How to Use This Series": series/etc/how-to-use.md
+    - "Foundation (Studies 1-4)":
+      - "01 -- What Is Man?":
+        - "Beginner Questions": series/etc/01-what-is-man/beginner-questions.md
+        - "Beginner Answers": series/etc/01-what-is-man/beginner-answers.md
+        - "Advanced Questions": series/etc/01-what-is-man/advanced-questions.md
+        - "Advanced Answers": series/etc/01-what-is-man/advanced-answers.md
+      - "02 -- Who Has Immortality?":
+        - "Beginner Questions": series/etc/02-who-has-immortality/beginner-questions.md
+        - "Beginner Answers": series/etc/02-who-has-immortality/beginner-answers.md
+        - "Advanced Questions": series/etc/02-who-has-immortality/advanced-questions.md
+        - "Advanced Answers": series/etc/02-who-has-immortality/advanced-answers.md
+      - "03 -- What Does Death Mean?":
+        - "Beginner Questions": series/etc/03-what-does-death-mean/beginner-questions.md
+        - "Beginner Answers": series/etc/03-what-does-death-mean/beginner-answers.md
+        - "Advanced Questions": series/etc/03-what-does-death-mean/advanced-questions.md
+        - "Advanced Answers": series/etc/03-what-does-death-mean/advanced-answers.md
+      - "04 -- State of the Dead":
+        - "Beginner Questions": series/etc/04-state-of-the-dead/beginner-questions.md
+        - "Beginner Answers": series/etc/04-state-of-the-dead/beginner-answers.md
+        - "Advanced Questions": series/etc/04-state-of-the-dead/advanced-questions.md
+        - "Advanced Answers": series/etc/04-state-of-the-dead/advanced-answers.md
+    - "Key Words (Studies 5-8)":
+      - "05 -- Four Hell Words":
+        - "Beginner Questions": series/etc/05-four-hell-words/beginner-questions.md
+        - "Beginner Answers": series/etc/05-four-hell-words/beginner-answers.md
+        - "Advanced Questions": series/etc/05-four-hell-words/advanced-questions.md
+        - "Advanced Answers": series/etc/05-four-hell-words/advanced-answers.md
+      - "06 -- Destruction Vocabulary":
+        - "Beginner Questions": series/etc/06-destruction-vocabulary/beginner-questions.md
+        - "Beginner Answers": series/etc/06-destruction-vocabulary/beginner-answers.md
+        - "Advanced Questions": series/etc/06-destruction-vocabulary/advanced-questions.md
+        - "Advanced Answers": series/etc/06-destruction-vocabulary/advanced-answers.md
+      - "07 -- Forever in the OT":
+        - "Beginner Questions": series/etc/07-forever-in-ot/beginner-questions.md
+        - "Beginner Answers": series/etc/07-forever-in-ot/beginner-answers.md
+        - "Advanced Questions": series/etc/07-forever-in-ot/advanced-questions.md
+        - "Advanced Answers": series/etc/07-forever-in-ot/advanced-answers.md
+      - "08 -- Forever in the NT":
+        - "Beginner Questions": series/etc/08-forever-in-nt/beginner-questions.md
+        - "Beginner Answers": series/etc/08-forever-in-nt/beginner-answers.md
+        - "Advanced Questions": series/etc/08-forever-in-nt/advanced-questions.md
+        - "Advanced Answers": series/etc/08-forever-in-nt/advanced-answers.md
+    - "Difficult Passages (Studies 9-13)":
+      - "09 -- Rich Man and Lazarus":
+        - "Beginner Questions": series/etc/09-rich-man-and-lazarus/beginner-questions.md
+        - "Beginner Answers": series/etc/09-rich-man-and-lazarus/beginner-answers.md
+        - "Advanced Questions": series/etc/09-rich-man-and-lazarus/advanced-questions.md
+        - "Advanced Answers": series/etc/09-rich-man-and-lazarus/advanced-answers.md
+      - "10 -- Souls Under the Altar":
+        - "Beginner Questions": series/etc/10-souls-under-the-altar/beginner-questions.md
+        - "Beginner Answers": series/etc/10-souls-under-the-altar/beginner-answers.md
+        - "Advanced Questions": series/etc/10-souls-under-the-altar/advanced-questions.md
+        - "Advanced Answers": series/etc/10-souls-under-the-altar/advanced-answers.md
+      - "11 -- Smoke Ascending Forever":
+        - "Beginner Questions": series/etc/11-smoke-ascending-forever/beginner-questions.md
+        - "Beginner Answers": series/etc/11-smoke-ascending-forever/beginner-answers.md
+        - "Advanced Questions": series/etc/11-smoke-ascending-forever/advanced-questions.md
+        - "Advanced Answers": series/etc/11-smoke-ascending-forever/advanced-answers.md
+      - "12 -- Tormented Forever":
+        - "Beginner Questions": series/etc/12-tormented-forever/beginner-questions.md
+        - "Beginner Answers": series/etc/12-tormented-forever/beginner-answers.md
+        - "Advanced Questions": series/etc/12-tormented-forever/advanced-questions.md
+        - "Advanced Answers": series/etc/12-tormented-forever/advanced-answers.md
+      - "13 -- Lake of Fire & Second Death":
+        - "Beginner Questions": series/etc/13-lake-of-fire-second-death/beginner-questions.md
+        - "Beginner Answers": series/etc/13-lake-of-fire-second-death/beginner-answers.md
+        - "Advanced Questions": series/etc/13-lake-of-fire-second-death/advanced-questions.md
+        - "Advanced Answers": series/etc/13-lake-of-fire-second-death/advanced-answers.md
+    - "Evaluation (Studies 14-19)":
+      - "14 -- Judgment Passages":
+        - "Beginner Questions": series/etc/14-judgment-passages/beginner-questions.md
+        - "Beginner Answers": series/etc/14-judgment-passages/beginner-answers.md
+        - "Advanced Questions": series/etc/14-judgment-passages/advanced-questions.md
+        - "Advanced Answers": series/etc/14-judgment-passages/advanced-answers.md
+      - "15 -- ECT's Strongest Case":
+        - "Beginner Questions": series/etc/15-ect-strongest-case/beginner-questions.md
+        - "Beginner Answers": series/etc/15-ect-strongest-case/beginner-answers.md
+        - "Advanced Questions": series/etc/15-ect-strongest-case/advanced-questions.md
+        - "Advanced Answers": series/etc/15-ect-strongest-case/advanced-answers.md
+      - "16 -- Historical Origins of ECT":
+        - "Beginner Questions": series/etc/16-historical-origins-of-ect/beginner-questions.md
+        - "Beginner Answers": series/etc/16-historical-origins-of-ect/beginner-answers.md
+        - "Advanced Questions": series/etc/16-historical-origins-of-ect/advanced-questions.md
+        - "Advanced Answers": series/etc/16-historical-origins-of-ect/advanced-answers.md
+      - "17 -- God's Character and Justice":
+        - "Beginner Questions": series/etc/17-gods-character-and-justice/beginner-questions.md
+        - "Beginner Answers": series/etc/17-gods-character-and-justice/beginner-answers.md
+        - "Advanced Questions": series/etc/17-gods-character-and-justice/advanced-questions.md
+        - "Advanced Answers": series/etc/17-gods-character-and-justice/advanced-answers.md
+      - "18 -- Matthew 10:28":
+        - "Beginner Questions": series/etc/18-matthew-10-28/beginner-questions.md
+        - "Beginner Answers": series/etc/18-matthew-10-28/beginner-answers.md
+        - "Advanced Questions": series/etc/18-matthew-10-28/advanced-questions.md
+        - "Advanced Answers": series/etc/18-matthew-10-28/advanced-answers.md
+      - "19 -- Judgment Parables":
+        - "Beginner Questions": series/etc/19-judgment-parables/beginner-questions.md
+        - "Beginner Answers": series/etc/19-judgment-parables/beginner-answers.md
+        - "Advanced Questions": series/etc/19-judgment-parables/advanced-questions.md
+        - "Advanced Answers": series/etc/19-judgment-parables/advanced-answers.md
+    - "Review":
+      - "20 -- Series Review":
+        - "Beginner Questions": series/etc/20-series-review/beginner-questions.md
+        - "Beginner Answers": series/etc/20-series-review/beginner-answers.md
+        - "Advanced Questions": series/etc/20-series-review/advanced-questions.md
+        - "Advanced Answers": series/etc/20-series-review/advanced-answers.md
+
