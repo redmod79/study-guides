@@ -320,7 +320,7 @@ def copy_assets():
     js_src = ETC_WEBSITE / "docs" / "javascripts"
     js_dest = DOCS / "javascripts"
     js_dest.mkdir(parents=True, exist_ok=True)
-    for fname in ["verse-popup.js", "external-links.js", "verses.json", "strongs.json"]:
+    for fname in ["external-links.js", "verses.json", "strongs.json"]:
         src = js_src / fname
         if src.exists():
             shutil.copy2(src, js_dest / fname)
