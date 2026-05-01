@@ -1,11 +1,13 @@
 /**
- * Bible Reference Popup System
- * - Verse references: Genesis 1:1, John 3:16, etc.
- * - Strong's numbers: H430, G5590, etc.
+ * Bible Reference System — Popups + Blue Letter Bible Links
+ *
+ * - Verse references (Genesis 1:1, John 3:16) → popup + BLB link
+ * - Strong's numbers (H430, G5590) → popup + BLB lexicon link
+ * - Italic Hebrew/Greek words before Strong's (*nephesh* (H5315)) → BLB lexicon link
  */
 
 (function() {
-  // Book name normalization
+  // ── Book name normalization (input → internal 3-char code) ──
   const bookMap = {
     'genesis': 'Gen', 'gen': 'Gen',
     'exodus': 'Exo', 'exo': 'Exo', 'exod': 'Exo',
@@ -72,46 +74,69 @@
     'revelation': 'Rev', 'rev': 'Rev'
   };
 
-  // Data storage
-  let verseData = null;
-  let strongsData = null;
-  let dataLoaded = { verses: false, strongs: false };
+  // ── Internal code → BLB URL code ──
+  const blbBookCode = {
+    'Gen':'gen','Exo':'exo','Lev':'lev','Num':'num','Deu':'deu',
+    'Jos':'jos','Jdg':'jdg','Rth':'rth',
+    '1Sa':'1sa','2Sa':'2sa','1Ki':'1ki','2Ki':'2ki',
+    '1Ch':'1ch','2Ch':'2ch','Ezr':'ezr','Neh':'neh','Est':'est',
+    'Job':'job','Psa':'psa','Pro':'pro','Ecc':'ecc','Sng':'sng',
+    'Isa':'isa','Jer':'jer','Lam':'lam','Ezk':'eze','Dan':'dan',
+    'Hos':'hos','Jol':'joe','Amo':'amo','Oba':'oba','Jon':'jon',
+    'Mic':'mic','Nah':'nah','Hab':'hab','Zep':'zep','Hag':'hag',
+    'Zec':'zec','Mal':'mal',
+    'Mat':'mat','Mrk':'mar','Luk':'luk','Jhn':'jhn','Act':'act',
+    'Rom':'rom','1Co':'1co','2Co':'2co','Gal':'gal','Eph':'eph',
+    'Php':'php','Col':'col','1Th':'1th','2Th':'2th',
+    '1Ti':'1ti','2Ti':'2ti','Tit':'tit','Phm':'phm',
+    'Heb':'heb','Jas':'jas','1Pe':'1pe','2Pe':'2pe',
+    '1Jn':'1jn','2Jn':'2jn','3Jn':'3jn','Jud':'jud','Rev':'rev'
+  };
 
-  // Get base URL from the page
+  // ── BLB URL builders ──
+  function blbVerseUrl(book, chapter, verseSpec) {
+    var code = blbBookCode[bookMap[book.toLowerCase()] || book];
+    if (!code) return null;
+    var firstVerse = String(verseSpec).replace(/\s/g,'').split(/[-,]/)[0];
+    return 'https://www.blueletterbible.org/kjv/' + code + '/' + chapter + '/' + firstVerse + '/';
+  }
+
+  function blbStrongsUrl(num) {
+    var lower = num.toLowerCase();
+    var lang = lower.startsWith('h') ? 'wlc' : 'tr';
+    return 'https://www.blueletterbible.org/lexicon/' + lower + '/kjv/' + lang + '/0-1/';
+  }
+
+  // ── Data loading ──
+  var verseData = null;
+  var strongsData = null;
+  var dataLoaded = { verses: false, strongs: false };
+
   function getBaseUrl() {
-    const base = document.querySelector('base');
+    var base = document.querySelector('base');
     if (base && base.href) return base.href.replace(/\/$/, '');
-    // Fallback: find the script tag for verse-popup.js
-    const scripts = document.querySelectorAll('script[src*="verse-popup"]');
+    var scripts = document.querySelectorAll('script[src*="verse-popup"]');
     if (scripts.length > 0) {
-      const src = scripts[0].src;
+      var src = scripts[0].src;
       return src.substring(0, src.lastIndexOf('/javascripts/'));
     }
     return '';
   }
 
-  // Load JSON data
   async function loadData(filename) {
-    const baseUrl = getBaseUrl();
-    const paths = [
-      `${baseUrl}/javascripts/${filename}`,
-      `./javascripts/${filename}`,
-      `/javascripts/${filename}`,
-      `../javascripts/${filename}`
+    var baseUrl = getBaseUrl();
+    var paths = [
+      baseUrl + '/javascripts/' + filename,
+      './javascripts/' + filename,
+      '/javascripts/' + filename,
+      '../javascripts/' + filename
     ];
-
-    for (const path of paths) {
+    for (var i = 0; i < paths.length; i++) {
       try {
-        const response = await fetch(path);
-        if (response.ok) {
-          console.log(`Loaded ${filename} from ${path}`);
-          return await response.json();
-        }
-      } catch (e) {
-        // Try next path
-      }
+        var response = await fetch(paths[i]);
+        if (response.ok) return await response.json();
+      } catch (e) {}
     }
-    console.warn(`Could not load ${filename}`);
     return null;
   }
 
@@ -126,53 +151,45 @@
     }
   }
 
-  // Parse verse specification
+  // ── Verse text lookup ──
   function parseVerseSpec(verseSpec) {
-    const targetVerses = new Set();
-    const parts = String(verseSpec).split(',').map(p => p.trim());
-
-    for (const part of parts) {
-      if (part.includes('-')) {
-        const [start, end] = part.split('-').map(n => parseInt(n.trim()));
-        if (!isNaN(start) && !isNaN(end)) {
-          for (let v = start; v <= end; v++) {
-            targetVerses.add(v);
-          }
+    var targetVerses = new Set();
+    var parts = String(verseSpec).split(',').map(function(p) { return p.trim(); });
+    for (var i = 0; i < parts.length; i++) {
+      if (parts[i].includes('-')) {
+        var range = parts[i].split('-').map(function(n) { return parseInt(n.trim()); });
+        if (!isNaN(range[0]) && !isNaN(range[1])) {
+          for (var v = range[0]; v <= range[1]; v++) targetVerses.add(v);
         }
       } else {
-        const v = parseInt(part);
-        if (!isNaN(v)) {
-          targetVerses.add(v);
-        }
+        var v2 = parseInt(parts[i]);
+        if (!isNaN(v2)) targetVerses.add(v2);
       }
     }
     return targetVerses;
   }
 
-  // Get verse text
   function getVerseText(book, chapter, verseSpec) {
     if (!verseData) return null;
-
-    const normalizedBook = bookMap[book.toLowerCase()] || book;
-    const chapterKey = `${normalizedBook} ${chapter}`;
-    const chapterData = verseData[chapterKey];
-
+    var normalizedBook = bookMap[book.toLowerCase()] || book;
+    var chapterKey = normalizedBook + ' ' + chapter;
+    var chapterData = verseData[chapterKey];
     if (!chapterData) return null;
 
-    const targetVerses = parseVerseSpec(verseSpec);
+    var targetVerses = parseVerseSpec(verseSpec);
     if (targetVerses.size === 0) return null;
 
-    const minVerse = Math.min(...targetVerses);
-    const maxVerse = Math.max(...targetVerses);
-    const contextStart = Math.max(1, minVerse - 1);
-    const contextEnd = maxVerse + 1;
+    var minV = Math.min.apply(null, Array.from(targetVerses));
+    var maxV = Math.max.apply(null, Array.from(targetVerses));
+    var contextStart = Math.max(1, minV - 1);
+    var contextEnd = maxV + 1;
 
-    let verses = [];
-    for (let v = contextStart; v <= contextEnd; v++) {
-      const verseKey = `${normalizedBook} ${chapter}:${v}`;
+    var verses = [];
+    for (var v = contextStart; v <= contextEnd; v++) {
+      var verseKey = normalizedBook + ' ' + chapter + ':' + v;
       if (chapterData[verseKey]) {
         verses.push({
-          ref: `${chapter}:${v}`,
+          ref: chapter + ':' + v,
           text: chapterData[verseKey],
           isTarget: targetVerses.has(v)
         });
@@ -181,109 +198,117 @@
     return verses;
   }
 
-  // Get Strong's data
   function getStrongsData(num) {
     if (!strongsData) return null;
     return strongsData[num] || null;
   }
 
-  // Popup management
-  let popup = null;
+  // ── Popup ──
+  var popup = null;
 
   function createPopup() {
     if (popup) return popup;
-
     popup = document.createElement('div');
     popup.id = 'bible-popup';
-    popup.innerHTML = `
-      <div class="popup-header">
-        <span class="popup-title"></span>
-        <button class="popup-close">&times;</button>
-      </div>
-      <div class="popup-content"></div>
-    `;
+    popup.innerHTML =
+      '<div class="popup-header">' +
+        '<span class="popup-title"></span>' +
+        '<span class="popup-actions">' +
+          '<a class="popup-blb-link" target="_blank" rel="noopener" title="Open in Blue Letter Bible">BLB</a>' +
+          '<button class="popup-close">&times;</button>' +
+        '</span>' +
+      '</div>' +
+      '<div class="popup-content"></div>';
     document.body.appendChild(popup);
 
     popup.querySelector('.popup-close').addEventListener('click', hidePopup);
-
     document.addEventListener('click', function(e) {
       if (popup && popup.style.display !== 'none' &&
           !popup.contains(e.target) &&
-          !e.target.classList.contains('verse-ref') &&
-          !e.target.classList.contains('strongs-ref')) {
+          !e.target.closest('.verse-ref') &&
+          !e.target.closest('.strongs-ref') &&
+          !e.target.closest('.word-ref')) {
         hidePopup();
       }
     });
-
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') hidePopup();
     });
-
     return popup;
   }
 
   function showVersePopup(element, book, chapter, verseSpec) {
-    const popup = createPopup();
-    const title = popup.querySelector('.popup-title');
-    const content = popup.querySelector('.popup-content');
+    var p = createPopup();
+    var title = p.querySelector('.popup-title');
+    var content = p.querySelector('.popup-content');
+    var blbLink = p.querySelector('.popup-blb-link');
 
-    title.textContent = `${book} ${chapter}:${verseSpec}`;
-    popup.className = 'verse-popup';
+    title.textContent = book + ' ' + chapter + ':' + verseSpec;
+    p.className = 'verse-popup';
 
-    const verses = getVerseText(book, chapter, verseSpec);
-
-    if (verses && verses.length > 0) {
-      content.innerHTML = verses.map(v =>
-        `<div class="verse-line ${v.isTarget ? 'verse-target' : 'verse-context'}">
-          <span class="verse-num">${v.ref}</span> ${v.text}
-        </div>`
-      ).join('');
+    var url = blbVerseUrl(book, chapter, verseSpec);
+    if (url) {
+      blbLink.href = url;
+      blbLink.style.display = '';
     } else {
-      content.innerHTML = '<p class="not-found">Verse not found</p>';
+      blbLink.style.display = 'none';
     }
 
+    var verses = getVerseText(book, chapter, verseSpec);
+    if (verses && verses.length > 0) {
+      content.innerHTML = verses.map(function(v) {
+        return '<div class="verse-line ' + (v.isTarget ? 'verse-target' : 'verse-context') + '">' +
+          '<span class="verse-num">' + v.ref + '</span> ' + v.text +
+          '</div>';
+      }).join('');
+    } else {
+      content.innerHTML = '<p class="not-found">Verse not in local database. <a href="' +
+        (url || '#') + '" target="_blank">View on Blue Letter Bible</a></p>';
+    }
     positionPopup(element);
   }
 
   function showStrongsPopup(element, num) {
-    const popup = createPopup();
-    const title = popup.querySelector('.popup-title');
-    const content = popup.querySelector('.popup-content');
+    var p = createPopup();
+    var title = p.querySelector('.popup-title');
+    var content = p.querySelector('.popup-content');
+    var blbLink = p.querySelector('.popup-blb-link');
 
-    const isHebrew = num.startsWith('H');
-    const lang = isHebrew ? 'Hebrew' : 'Greek';
+    var isHebrew = num.startsWith('H');
+    var lang = isHebrew ? 'Hebrew' : 'Greek';
 
-    title.textContent = `${num} (${lang})`;
-    popup.className = 'strongs-popup';
+    title.textContent = num + ' (' + lang + ')';
+    p.className = 'strongs-popup';
 
-    const data = getStrongsData(num);
+    var url = blbStrongsUrl(num);
+    blbLink.href = url;
+    blbLink.style.display = '';
 
+    var data = getStrongsData(num);
     if (data) {
-      content.innerHTML = `
-        <div class="strongs-word">${data.word}</div>
-        <div class="strongs-translit">${data.translit}</div>
-        <div class="strongs-def">${data.def}</div>
-      `;
+      content.innerHTML =
+        '<div class="strongs-word">' + data.word + '</div>' +
+        '<div class="strongs-translit">' + data.translit + '</div>' +
+        '<div class="strongs-def">' + data.def + '</div>';
     } else {
-      content.innerHTML = '<p class="not-found">Strong\'s number not found</p>';
+      content.innerHTML = '<p class="not-found">Not in local database. <a href="' +
+        url + '" target="_blank">View on Blue Letter Bible</a></p>';
     }
-
     positionPopup(element);
   }
 
   function positionPopup(element) {
-    const rect = element.getBoundingClientRect();
+    var rect = element.getBoundingClientRect();
     popup.style.display = 'block';
 
-    let top = rect.bottom + window.scrollY + 10;
-    let left = rect.left + window.scrollX;
+    var top = rect.bottom + window.scrollY + 10;
+    var left = rect.left + window.scrollX;
 
-    const popupRect = popup.getBoundingClientRect();
+    var popupRect = popup.getBoundingClientRect();
     if (left + popupRect.width > window.innerWidth) {
       left = window.innerWidth - popupRect.width - 20;
     }
     if (left < 10) left = 10;
-
     if (top + popupRect.height > window.scrollY + window.innerHeight) {
       top = rect.top + window.scrollY - popupRect.height - 10;
     }
@@ -293,293 +318,346 @@
   }
 
   function hidePopup() {
-    if (popup) {
-      popup.style.display = 'none';
-    }
+    if (popup) popup.style.display = 'none';
   }
 
-  // Text processing
+  // ── Text processing ──
   function shouldSkip(node) {
-    const parent = node.parentNode;
+    var parent = node.parentNode;
     if (!parent) return true;
-
-    const tagName = parent.tagName;
-    if (tagName === 'SCRIPT' || tagName === 'STYLE' || tagName === 'CODE' || tagName === 'PRE') {
-      return true;
-    }
-
-    if (parent.classList && (parent.classList.contains('verse-ref') || parent.classList.contains('strongs-ref'))) {
-      return true;
-    }
-
-    if (parent.closest && (parent.closest('#bible-popup') || parent.closest('code') || parent.closest('pre'))) {
-      return true;
-    }
-
+    var tag = parent.tagName;
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'CODE' || tag === 'PRE') return true;
+    if (parent.classList && (
+      parent.classList.contains('verse-ref') ||
+      parent.classList.contains('strongs-ref') ||
+      parent.classList.contains('word-ref')
+    )) return true;
+    if (parent.closest && (
+      parent.closest('#bible-popup') ||
+      parent.closest('code') ||
+      parent.closest('pre')
+    )) return true;
     return false;
   }
 
+  function handleRefClick(e) {
+    if (e.ctrlKey || e.metaKey || e.button === 1) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var el = e.currentTarget;
+    if (el.classList.contains('verse-ref')) {
+      showVersePopup(el, el.dataset.book, el.dataset.chapter, el.dataset.verseSpec);
+    } else if (el.classList.contains('strongs-ref')) {
+      showStrongsPopup(el, el.dataset.num);
+    }
+  }
+
   function processTextNode(node) {
-    const text = node.textContent;
+    var text = node.textContent;
     if (!text || text.trim().length === 0) return;
 
-    // Combined pattern for verses and Strong's numbers
-    const versePattern = /\b(Genesis|Gen|Exodus|Exo|Exod|Leviticus|Lev|Numbers|Num|Deuteronomy|Deut|Deu|Joshua|Josh|Judges|Judg|Ruth|1 Samuel|1 Sam|2 Samuel|2 Sam|1 Kings|2 Kings|1 Chronicles|1 Chron|2 Chronicles|2 Chron|Ezra|Nehemiah|Neh|Esther|Est|Job|Psalms?|Psa?|Proverbs|Prov|Pro|Ecclesiastes|Eccl?|Ecc|Song of Solomon|Song|Isaiah|Isa|Jeremiah|Jer|Lamentations|Lam|Ezekiel|Ezek?|Daniel|Dan|Hosea|Hos|Joel|Amos|Obadiah|Obad?|Jonah|Jon|Micah|Mic|Nahum|Nah|Habakkuk|Hab|Zephaniah|Zeph|Haggai|Hag|Zechariah|Zech|Zec|Malachi|Mal|Matthew|Matt?|Mark|Mrk|Luke|Luk|John|Jhn|Acts|Romans|Rom|1 Corinthians|1 Cor|2 Corinthians|2 Cor|Galatians|Gal|Ephesians|Eph|Philippians|Phil|Php|Colossians|Col|1 Thessalonians|1 Thess?|1 Th|2 Thessalonians|2 Th|1 Timothy|1 Tim|2 Timothy|2 Tim|Titus|Tit|Philemon|Phlm|Hebrews|Heb|James|Jas|1 Peter|1 Pet|2 Peter|2 Pet|1 John|2 John|3 John|Jude|Revelation|Rev)\s+(\d+):([\d]+(?:\s*[-,]\s*\d+)*)/gi;
+    var versePattern = /\b(Genesis|Gen|Exodus|Exo|Exod|Leviticus|Lev|Numbers|Num|Deuteronomy|Deut|Deu|Joshua|Josh|Judges|Judg|Ruth|1 Samuel|1 Sam|2 Samuel|2 Sam|1 Kings|2 Kings|1 Chronicles|1 Chron|2 Chronicles|2 Chron|Ezra|Nehemiah|Neh|Esther|Est|Job|Psalms?|Psa?|Proverbs|Prov|Pro|Ecclesiastes|Eccl?|Ecc|Song of Solomon|Song|Isaiah|Isa|Jeremiah|Jer|Lamentations|Lam|Ezekiel|Ezek?|Daniel|Dan|Hosea|Hos|Joel|Amos|Obadiah|Obad?|Jonah|Jon|Micah|Mic|Nahum|Nah|Habakkuk|Hab|Zephaniah|Zeph|Haggai|Hag|Zechariah|Zech|Zec|Malachi|Mal|Matthew|Matt?|Mark|Mrk|Luke|Luk|John|Jhn|Acts|Romans|Rom|1 Corinthians|1 Cor|2 Corinthians|2 Cor|Galatians|Gal|Ephesians|Eph|Philippians|Phil|Php|Colossians|Col|1 Thessalonians|1 Thess?|1 Th|2 Thessalonians|2 Th|1 Timothy|1 Tim|2 Timothy|2 Tim|Titus|Tit|Philemon|Phlm|Hebrews|Heb|James|Jas|1 Peter|1 Pet|2 Peter|2 Pet|1 John|2 John|3 John|Jude|Revelation|Rev)\s+(\d+):([\d]+(?:\s*[-,]\s*\d+)*)/gi;
 
-    const strongsPattern = /\b([HG])(\d{3,5})\b/g;
+    var strongsPattern = /\b([HG])(\d{3,5})\b/g;
 
-    // Find all matches
-    const allMatches = [];
+    var allMatches = [];
+    var match;
 
-    let match;
     while ((match = versePattern.exec(text)) !== null) {
       allMatches.push({
-        type: 'verse',
-        index: match.index,
-        length: match[0].length,
-        text: match[0],
-        book: match[1],
-        chapter: match[2],
-        verseSpec: match[3]
+        type: 'verse', index: match.index, length: match[0].length,
+        text: match[0], book: match[1], chapter: match[2], verseSpec: match[3]
       });
     }
-
     while ((match = strongsPattern.exec(text)) !== null) {
       allMatches.push({
-        type: 'strongs',
-        index: match.index,
-        length: match[0].length,
-        text: match[0],
-        num: match[1] + match[2]
+        type: 'strongs', index: match.index, length: match[0].length,
+        text: match[0], num: match[1] + match[2]
       });
     }
 
     if (allMatches.length === 0) return;
+    allMatches.sort(function(a, b) { return a.index - b.index; });
 
-    // Sort by position
-    allMatches.sort((a, b) => a.index - b.index);
-
-    // Remove overlapping matches (keep first)
-    const filtered = [];
-    let lastEnd = 0;
-    for (const m of allMatches) {
-      if (m.index >= lastEnd) {
-        filtered.push(m);
-        lastEnd = m.index + m.length;
+    // Remove overlaps
+    var filtered = [];
+    var lastEnd = 0;
+    for (var i = 0; i < allMatches.length; i++) {
+      if (allMatches[i].index >= lastEnd) {
+        filtered.push(allMatches[i]);
+        lastEnd = allMatches[i].index + allMatches[i].length;
       }
     }
-
     if (filtered.length === 0) return;
 
-    // Build fragment
-    const fragment = document.createDocumentFragment();
-    let lastIndex = 0;
+    var fragment = document.createDocumentFragment();
+    var lastIndex = 0;
 
-    for (const m of filtered) {
+    for (var i = 0; i < filtered.length; i++) {
+      var m = filtered[i];
       if (m.index > lastIndex) {
         fragment.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
       }
 
-      const span = document.createElement('span');
-      span.textContent = m.text;
+      var a = document.createElement('a');
+      a.textContent = m.text;
+      a.addEventListener('click', handleRefClick);
 
       if (m.type === 'verse') {
-        span.className = 'verse-ref';
-        span.dataset.book = m.book;
-        span.dataset.chapter = m.chapter;
-        span.dataset.verseSpec = m.verseSpec;
-        span.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          showVersePopup(this, this.dataset.book, this.dataset.chapter, this.dataset.verseSpec);
-        });
+        a.className = 'verse-ref';
+        a.dataset.book = m.book;
+        a.dataset.chapter = m.chapter;
+        a.dataset.verseSpec = m.verseSpec;
+        var vUrl = blbVerseUrl(m.book, m.chapter, m.verseSpec);
+        a.href = vUrl || '#';
+        a.target = '_blank';
+        a.rel = 'noopener';
       } else {
-        span.className = 'strongs-ref';
-        span.dataset.num = m.num;
-        span.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          showStrongsPopup(this, this.dataset.num);
-        });
+        a.className = 'strongs-ref';
+        a.dataset.num = m.num;
+        a.href = blbStrongsUrl(m.num);
+        a.target = '_blank';
+        a.rel = 'noopener';
       }
 
-      fragment.appendChild(span);
+      fragment.appendChild(a);
       lastIndex = m.index + m.length;
     }
 
     if (lastIndex < text.length) {
       fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
     }
-
     node.parentNode.replaceChild(fragment, node);
   }
 
   function processElement(element) {
     if (!element) return;
-
-    const textNodes = [];
-    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
-
+    var textNodes = [];
+    var walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
     while (walker.nextNode()) {
-      const node = walker.currentNode;
+      var node = walker.currentNode;
       if (!shouldSkip(node) && (node.textContent.match(/\d+:\d+/) || node.textContent.match(/[HG]\d+/))) {
         textNodes.push(node);
       }
     }
-
     textNodes.forEach(processTextNode);
   }
 
-  // Styles
+  // ── Link italic Hebrew/Greek words adjacent to Strong's refs ──
+  function linkItalicWords(element) {
+    if (!element) return;
+    var strongsRefs = element.querySelectorAll('a.strongs-ref');
+
+    strongsRefs.forEach(function(ref) {
+      var num = ref.dataset.num;
+      if (!num) return;
+
+      // Walk backwards from the strongs-ref to find a preceding <em>
+      // Pattern: <em>word</em> (H1234) or <em>word</em>(H1234)
+      // After text processing: <em>word</em> + textNode(" (") + <a class="strongs-ref">
+      // or the parens might be partially consumed
+
+      var prev = ref.previousSibling;
+      if (!prev) return;
+
+      // The text node between <em> and the strongs link should contain "("
+      if (prev.nodeType === 3) {
+        var txt = prev.textContent;
+        if (!/\(\s*$/.test(txt)) return;
+
+        var emEl = prev.previousSibling;
+        // It might be prev.prev if there's whitespace, or direct
+        if (!emEl && prev.previousSibling) emEl = prev.previousSibling;
+        if (!emEl) return;
+
+        // Check if it's an <em> or contains one
+        if (emEl.tagName === 'EM' || emEl.tagName === 'I') {
+          linkEmElement(emEl, num);
+        } else if (emEl.tagName === 'STRONG' || emEl.tagName === 'B') {
+          // Might be <strong><em>word</em></strong>
+          var inner = emEl.querySelector('em, i');
+          if (inner) linkEmElement(inner, num);
+        }
+      }
+
+      // Also handle closing paren after the strongs ref
+      var next = ref.nextSibling;
+      if (next && next.nodeType === 3 && /^\s*\)/.test(next.textContent)) {
+        // Leave closing paren as-is, just clean up
+      }
+    });
+  }
+
+  function linkEmElement(emEl, strongsNum) {
+    // Don't double-link
+    if (emEl.parentNode && emEl.parentNode.classList &&
+        emEl.parentNode.classList.contains('word-ref')) return;
+
+    var a = document.createElement('a');
+    a.className = 'word-ref';
+    a.href = blbStrongsUrl(strongsNum);
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.dataset.num = strongsNum;
+    a.title = strongsNum + ' on Blue Letter Bible';
+
+    a.addEventListener('click', function(e) {
+      if (e.ctrlKey || e.metaKey || e.button === 1) return;
+      e.preventDefault();
+      e.stopPropagation();
+      showStrongsPopup(a, strongsNum);
+    });
+
+    emEl.parentNode.insertBefore(a, emEl);
+    a.appendChild(emEl);
+  }
+
+  // ── Styles ──
   function addStyles() {
     if (document.getElementById('bible-popup-styles')) return;
-
-    const style = document.createElement('style');
+    var style = document.createElement('style');
     style.id = 'bible-popup-styles';
-    style.textContent = `
-      .verse-ref, .strongs-ref {
-        cursor: pointer;
-        border-bottom: 1px dotted currentColor;
-        transition: color 0.2s;
-      }
-      .verse-ref {
-        color: var(--md-accent-fg-color, #7c4dff);
-      }
-      .verse-ref:hover {
-        color: var(--md-primary-fg-color, #4051b5);
-      }
-      .strongs-ref {
-        color: #2e7d32;
-        font-family: monospace;
-        font-size: 0.9em;
-      }
-      .strongs-ref:hover {
-        color: #1b5e20;
-      }
-      #bible-popup {
-        display: none;
-        position: absolute;
-        z-index: 9999;
-        background: var(--md-default-bg-color, white);
-        border: 1px solid var(--md-default-fg-color--lightest, #ddd);
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        max-width: 500px;
-        min-width: 280px;
-        font-size: 0.9rem;
-      }
-      .popup-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 15px;
-        border-bottom: 1px solid var(--md-default-fg-color--lightest, #ddd);
-        border-radius: 8px 8px 0 0;
-      }
-      .verse-popup .popup-header {
-        background: var(--md-code-bg-color, #f5f5f5);
-      }
-      .strongs-popup .popup-header {
-        background: #e8f5e9;
-      }
-      .popup-title {
-        font-weight: bold;
-      }
-      .verse-popup .popup-title {
-        color: var(--md-primary-fg-color, #4051b5);
-      }
-      .strongs-popup .popup-title {
-        color: #2e7d32;
-      }
-      .popup-close {
-        background: none;
-        border: none;
-        font-size: 1.5rem;
-        cursor: pointer;
-        color: var(--md-default-fg-color--light, #666);
-        line-height: 1;
-        padding: 0 5px;
-      }
-      .popup-close:hover {
-        color: var(--md-accent-fg-color, #7c4dff);
-      }
-      .popup-content {
-        padding: 15px;
-        max-height: 300px;
-        overflow-y: auto;
-      }
-      .verse-line {
-        margin: 8px 0;
-        line-height: 1.6;
-      }
-      .verse-num {
-        font-weight: bold;
-        color: var(--md-default-fg-color--light, #666);
-        margin-right: 5px;
-      }
-      .verse-target {
-        background: var(--md-accent-fg-color--transparent, rgba(124,77,255,0.1));
-        padding: 5px 8px;
-        border-radius: 4px;
-        border-left: 3px solid var(--md-accent-fg-color, #7c4dff);
-      }
-      .verse-context {
-        color: var(--md-default-fg-color--light, #666);
-        font-size: 0.9em;
-      }
-      .strongs-word {
-        font-size: 1.8em;
-        text-align: center;
-        margin-bottom: 5px;
-        font-family: 'SBL Hebrew', 'SBL Greek', 'Times New Roman', serif;
-      }
-      .strongs-translit {
-        text-align: center;
-        font-style: italic;
-        color: var(--md-default-fg-color--light, #666);
-        margin-bottom: 10px;
-      }
-      .strongs-def {
-        line-height: 1.6;
-      }
-      .not-found {
-        color: var(--md-default-fg-color--light, #666);
-        font-style: italic;
-      }
-    `;
+    style.textContent =
+      '.verse-ref, .strongs-ref, .word-ref {' +
+      '  cursor: pointer;' +
+      '  text-decoration: none;' +
+      '  border-bottom: 1px dotted currentColor;' +
+      '  transition: color 0.2s, border-color 0.2s;' +
+      '}' +
+      '.verse-ref {' +
+      '  color: var(--md-accent-fg-color, #7c4dff);' +
+      '}' +
+      '.verse-ref:hover {' +
+      '  color: var(--md-primary-fg-color, #4051b5);' +
+      '  border-bottom-style: solid;' +
+      '}' +
+      '.strongs-ref {' +
+      '  color: #2e7d32;' +
+      '  font-family: monospace;' +
+      '  font-size: 0.9em;' +
+      '}' +
+      '.strongs-ref:hover {' +
+      '  color: #1b5e20;' +
+      '  border-bottom-style: solid;' +
+      '}' +
+      '.word-ref {' +
+      '  color: #1565c0;' +
+      '  border-bottom: 1px dotted #1565c0;' +
+      '}' +
+      '.word-ref:hover {' +
+      '  color: #0d47a1;' +
+      '  border-bottom-style: solid;' +
+      '}' +
+      '.word-ref em, .word-ref i {' +
+      '  color: inherit;' +
+      '}' +
+      '#bible-popup {' +
+      '  display: none;' +
+      '  position: absolute;' +
+      '  z-index: 9999;' +
+      '  background: var(--md-default-bg-color, white);' +
+      '  border: 1px solid var(--md-default-fg-color--lightest, #ddd);' +
+      '  border-radius: 8px;' +
+      '  box-shadow: 0 4px 20px rgba(0,0,0,0.15);' +
+      '  max-width: 500px;' +
+      '  min-width: 280px;' +
+      '  font-size: 0.9rem;' +
+      '}' +
+      '.popup-header {' +
+      '  display: flex;' +
+      '  justify-content: space-between;' +
+      '  align-items: center;' +
+      '  padding: 10px 15px;' +
+      '  border-bottom: 1px solid var(--md-default-fg-color--lightest, #ddd);' +
+      '  border-radius: 8px 8px 0 0;' +
+      '}' +
+      '.verse-popup .popup-header { background: var(--md-code-bg-color, #f5f5f5); }' +
+      '.strongs-popup .popup-header { background: #e8f5e9; }' +
+      '.popup-title { font-weight: bold; }' +
+      '.verse-popup .popup-title { color: var(--md-primary-fg-color, #4051b5); }' +
+      '.strongs-popup .popup-title { color: #2e7d32; }' +
+      '.popup-actions { display: flex; align-items: center; gap: 8px; }' +
+      '.popup-blb-link {' +
+      '  font-size: 0.75rem;' +
+      '  padding: 2px 8px;' +
+      '  border-radius: 4px;' +
+      '  background: var(--md-accent-fg-color, #7c4dff);' +
+      '  color: white !important;' +
+      '  text-decoration: none;' +
+      '  font-weight: bold;' +
+      '  letter-spacing: 0.5px;' +
+      '}' +
+      '.popup-blb-link:hover { opacity: 0.85; }' +
+      '.popup-close {' +
+      '  background: none; border: none; font-size: 1.5rem;' +
+      '  cursor: pointer; color: var(--md-default-fg-color--light, #666);' +
+      '  line-height: 1; padding: 0 5px;' +
+      '}' +
+      '.popup-close:hover { color: var(--md-accent-fg-color, #7c4dff); }' +
+      '.popup-content {' +
+      '  padding: 15px; max-height: 300px; overflow-y: auto;' +
+      '}' +
+      '.verse-line { margin: 8px 0; line-height: 1.6; }' +
+      '.verse-num {' +
+      '  font-weight: bold;' +
+      '  color: var(--md-default-fg-color--light, #666);' +
+      '  margin-right: 5px;' +
+      '}' +
+      '.verse-target {' +
+      '  background: var(--md-accent-fg-color--transparent, rgba(124,77,255,0.1));' +
+      '  padding: 5px 8px; border-radius: 4px;' +
+      '  border-left: 3px solid var(--md-accent-fg-color, #7c4dff);' +
+      '}' +
+      '.verse-context {' +
+      '  color: var(--md-default-fg-color--light, #666);' +
+      '  font-size: 0.9em;' +
+      '}' +
+      '.strongs-word {' +
+      '  font-size: 1.8em; text-align: center; margin-bottom: 5px;' +
+      '  font-family: "SBL Hebrew", "SBL Greek", "Times New Roman", serif;' +
+      '}' +
+      '.strongs-translit { text-align: center; font-style: italic;' +
+      '  color: var(--md-default-fg-color--light, #666); margin-bottom: 10px; }' +
+      '.strongs-def { line-height: 1.6; }' +
+      '.not-found {' +
+      '  color: var(--md-default-fg-color--light, #666); font-style: italic;' +
+      '}' +
+      '.not-found a { color: var(--md-accent-fg-color, #7c4dff); }' +
+
+      /* Dark mode adjustments */
+      '[data-md-color-scheme="slate"] .strongs-ref { color: #66bb6a; }' +
+      '[data-md-color-scheme="slate"] .strongs-ref:hover { color: #81c784; }' +
+      '[data-md-color-scheme="slate"] .strongs-popup .popup-header { background: #1b2b1b; }' +
+      '[data-md-color-scheme="slate"] .word-ref { color: #64b5f6; border-bottom-color: #64b5f6; }' +
+      '[data-md-color-scheme="slate"] .word-ref:hover { color: #90caf9; }';
+
     document.head.appendChild(style);
   }
 
-  // Initialization
+  // ── Init ──
   async function init() {
-    console.log('Bible popup: initializing...');
     addStyles();
     await loadAllData();
-
-    const content = document.querySelector('.md-content') || document.querySelector('article') || document.body;
+    var content = document.querySelector('.md-content') || document.querySelector('article') || document.body;
     processElement(content);
-    console.log('Bible popup: processed page');
+    linkItalicWords(content);
   }
 
   function setupNavigation() {
     if (typeof document$ !== 'undefined') {
-      document$.subscribe(function() {
-        setTimeout(init, 100);
-      });
+      document$.subscribe(function() { setTimeout(init, 100); });
     }
-
-    const observer = new MutationObserver(function(mutations) {
+    var observer = new MutationObserver(function(mutations) {
       mutations.forEach(function(mutation) {
         if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
           mutation.addedNodes.forEach(function(node) {
-            if (node.nodeType === 1 && (node.classList?.contains('md-content') || node.querySelector?.('.md-content'))) {
+            if (node.nodeType === 1 && (node.classList && node.classList.contains('md-content') || node.querySelector && node.querySelector('.md-content'))) {
               setTimeout(init, 100);
             }
           });
         }
       });
     });
-
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
