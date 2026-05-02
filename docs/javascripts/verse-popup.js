@@ -483,23 +483,24 @@
       }
     });
 
-    // Also build mappings from the raw HTML source text for patterns the
-    // DOM walk might miss (e.g. inside already-processed nodes).
-    // Scan original page text for *word* (H/G1234) patterns.
+    // Also scan raw HTML for *word* (H/G1234) patterns the DOM walk might miss.
     var rawText = element.innerHTML;
-    var rawPattern = /<em>([A-Za-z]+)<\/em>\s*\(([HG]\d{3,5})\)/gi;
+    var rawPattern = /<em>([A-Za-z][A-Za-z ]*[A-Za-z])<\/em>\s*\(([HG]\d{3,5})\)/gi;
     var rawMatch;
     while ((rawMatch = rawPattern.exec(rawText)) !== null) {
-      var w = rawMatch[1].trim().toLowerCase();
+      // Map each word in the phrase individually
+      var words = rawMatch[1].trim().toLowerCase().split(/\s+/);
       var n = rawMatch[2].toUpperCase();
-      if (w.length > 1 && !wordMap[w]) {
-        wordMap[w] = n;
+      for (var wi = 0; wi < words.length; wi++) {
+        if (words[wi].length > 1 && !wordMap[words[wi]]) {
+          wordMap[words[wi]] = n;
+        }
       }
     }
 
     if (Object.keys(wordMap).length === 0) return;
 
-    // Pass 2: link ALL <em> elements whose text matches the map
+    // Pass 2: link ALL <em> elements where any word matches the map
     var allEms = element.querySelectorAll('em, i');
 
     allEms.forEach(function(em) {
@@ -508,11 +509,25 @@
           em.closest('#bible-popup') || em.closest('code') || em.closest('pre')) return;
 
       var text = em.textContent.trim().toLowerCase();
+
+      // Try exact match first
       var num = wordMap[text];
+
+      // Then try matching any word in the phrase
+      if (!num) {
+        var words = text.split(/\s+/);
+        for (var wi = 0; wi < words.length; wi++) {
+          if (wordMap[words[wi]]) {
+            num = wordMap[words[wi]];
+            break;
+          }
+        }
+      }
+
       if (!num) return;
 
-      // Skip common English words that happen to be italic for emphasis
-      if (/^(added|is|was|were|are|not|the|a|an|and|or|but|if|so|also|only|very|all|no|do|did|has|had|have|can|may|will|shall|would|could|should|must|been|being|become|became)$/.test(text)) return;
+      // Skip common English words used for emphasis
+      if (/^(added|is|was|were|are|not|the|a|an|and|or|but|if|so|also|only|very|all|no|do|did|has|had|have|can|may|will|shall|would|could|should|must|been|being|become|became|imago|dei|self|this|that|same|day|put|on|in|at|to|of|for|from|with|by|as|it|he|she|we|they|us|him|her|its|our|his|who|what|how|why|when|where)$/i.test(text)) return;
 
       var a = document.createElement('a');
       a.className = 'word-ref';
