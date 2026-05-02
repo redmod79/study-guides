@@ -110,7 +110,8 @@
   // ── Data loading ──
   var verseData = null;
   var strongsData = null;
-  var dataLoaded = { verses: false, strongs: false };
+  var wordmapData = null;
+  var dataLoaded = { verses: false, strongs: false, wordmap: false };
 
   function getBaseUrl() {
     var base = document.querySelector('base');
@@ -148,6 +149,10 @@
     if (!dataLoaded.strongs) {
       strongsData = await loadData('strongs.json');
       dataLoaded.strongs = true;
+    }
+    if (!dataLoaded.wordmap) {
+      wordmapData = await loadData('wordmap.json');
+      dataLoaded.wordmap = true;
     }
   }
 
@@ -444,90 +449,65 @@
   }
 
   // ── Link italic Hebrew/Greek words to BLB ──
-  // Two-pass approach:
-  //   Pass 1: scan for <em>word</em> followed by (H/G1234) to build word→Strong's map
-  //   Pass 2: link ALL <em> elements whose text matches the map
+  // Uses wordmap.json (12,500+ transliterated words → Strong's numbers)
+  // plus page-level overrides from explicit *word* (H1234) pairings.
+
+  var englishSkip = /^(added|is|isn|was|were|are|aren|not|the|a|an|and|or|but|if|so|also|only|very|all|no|do|did|don|has|had|have|haven|can|may|will|shall|would|could|should|must|been|being|become|became|self|this|that|same|day|put|on|in|at|to|of|for|from|with|by|as|it|he|she|we|they|us|him|her|its|our|his|who|what|how|why|when|where|more|most|much|many|some|any|each|every|both|just|still|yet|now|then|here|there|already|never|always|often|once|than|about|above|below|under|over|after|before|between|through|into|upon|without|within|among|against|toward|until|since|during|which|whom|whose|because|although|though|while|whether|either|neither|nor|like|such|own|other|another|new|old|first|last|next|long|short|great|small|even|well|back|away|down|off|out|up|too|something|nothing|everything|anything|someone|everyone|really|truly|simply|merely|rather|instead|already|perhaps|quite|indeed|certainly|actually|basically|especially|particularly|generally|specifically|however|therefore|furthermore|moreover|nevertheless|nonetheless|otherwise|meanwhile|accordingly|consequently|regardless|despite|himself|herself|itself|ourselves|themselves|yourself)$/i;
+
+  function lookupWord(word) {
+    if (!word || word.length < 2) return null;
+    // Page-level override first, then wordmap.json
+    if (wordmapData) return wordmapData[word] || null;
+    return null;
+  }
 
   function linkItalicWords(element) {
     if (!element) return;
 
-    // Pass 1: build word → Strong's mapping from explicit pairings
-    var wordMap = {};
-    var strongsRefs = element.querySelectorAll('a.strongs-ref');
-
-    strongsRefs.forEach(function(ref) {
-      var num = ref.dataset.num;
-      if (!num) return;
-
-      // Look for pattern: <em>word</em> + text(" (") + <a.strongs-ref>
-      var prev = ref.previousSibling;
-      if (!prev || prev.nodeType !== 3) return;
-      if (!/\(\s*$/.test(prev.textContent)) return;
-
-      var emEl = prev.previousSibling;
-      if (!emEl) return;
-
-      // Handle <em> directly, or <strong><em>...</em></strong>
-      var targetEm = null;
-      if (emEl.tagName === 'EM' || emEl.tagName === 'I') {
-        targetEm = emEl;
-      } else if (emEl.tagName === 'STRONG' || emEl.tagName === 'B') {
-        targetEm = emEl.querySelector('em, i');
-      }
-
-      if (targetEm) {
-        var word = targetEm.textContent.trim().toLowerCase();
-        if (word && word.length > 1) {
-          wordMap[word] = num;
-        }
-      }
-    });
-
-    // Also scan raw HTML for *word* (H/G1234) patterns the DOM walk might miss.
+    // Collect page-level overrides from explicit *word* (H1234) pairings
+    var pageOverrides = {};
     var rawText = element.innerHTML;
-    var rawPattern = /<em>([A-Za-z][A-Za-z ]*[A-Za-z])<\/em>\s*\(([HG]\d{3,5})\)/gi;
+    var rawPattern = /<em>([A-Za-z][A-Za-z ]*?[A-Za-z])<\/em>\s*\(([HG]\d{3,5})\)/gi;
     var rawMatch;
     while ((rawMatch = rawPattern.exec(rawText)) !== null) {
-      // Map each word in the phrase individually
       var words = rawMatch[1].trim().toLowerCase().split(/\s+/);
       var n = rawMatch[2].toUpperCase();
       for (var wi = 0; wi < words.length; wi++) {
-        if (words[wi].length > 1 && !wordMap[words[wi]]) {
-          wordMap[words[wi]] = n;
-        }
+        if (words[wi].length > 1) pageOverrides[words[wi]] = n;
       }
     }
 
-    if (Object.keys(wordMap).length === 0) return;
+    // Merge page overrides into wordmap (page overrides win)
+    if (wordmapData) {
+      for (var key in pageOverrides) {
+        wordmapData[key] = pageOverrides[key];
+      }
+    }
 
-    // Pass 2: link ALL <em> elements where any word matches the map
     var allEms = element.querySelectorAll('em, i');
 
     allEms.forEach(function(em) {
-      // Skip if already linked
       if (em.closest('.word-ref') || em.closest('.strongs-ref') ||
           em.closest('#bible-popup') || em.closest('code') || em.closest('pre')) return;
 
       var text = em.textContent.trim().toLowerCase();
+      if (englishSkip.test(text)) return;
 
-      // Try exact match first
-      var num = wordMap[text];
+      // Try exact match
+      var num = lookupWord(text);
 
-      // Then try matching any word in the phrase
+      // Try each word in the phrase
       if (!num) {
         var words = text.split(/\s+/);
         for (var wi = 0; wi < words.length; wi++) {
-          if (wordMap[words[wi]]) {
-            num = wordMap[words[wi]];
-            break;
-          }
+          var w = words[wi];
+          if (englishSkip.test(w)) continue;
+          num = lookupWord(w);
+          if (num) break;
         }
       }
 
       if (!num) return;
-
-      // Skip common English words used for emphasis
-      if (/^(added|is|was|were|are|not|the|a|an|and|or|but|if|so|also|only|very|all|no|do|did|has|had|have|can|may|will|shall|would|could|should|must|been|being|become|became|imago|dei|self|this|that|same|day|put|on|in|at|to|of|for|from|with|by|as|it|he|she|we|they|us|him|her|its|our|his|who|what|how|why|when|where)$/i.test(text)) return;
 
       var a = document.createElement('a');
       a.className = 'word-ref';

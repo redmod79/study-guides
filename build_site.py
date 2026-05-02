@@ -384,6 +384,12 @@ def main():
     print(f"\n[Overrides] Copying overrides...")
     copy_overrides()
 
+    print(f"\n[Wordmap] Building word map...")
+    wordmap_script = PROJECT_ROOT / "build_wordmap.py"
+    if wordmap_script.exists():
+        import subprocess, sys
+        subprocess.run([sys.executable, str(wordmap_script)], cwd=PROJECT_ROOT)
+
     print(f"\n[Config] Generating mkdocs.yml...")
     generate_mkdocs_yml()
 
